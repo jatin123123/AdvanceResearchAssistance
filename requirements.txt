@@ -1,0 +1,9 @@
+streamlit
+python-dotenv
+typing-extensions
+pydantic
+langchain
+langchain-google-genai
+langchain-groq
+langgraph
+requests
