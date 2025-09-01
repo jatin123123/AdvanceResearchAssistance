@@ -196,7 +196,7 @@ def main():
                 "reddit_analysis": None,
                 "final_answer": None,
             }
-            st.write("🚀 Starting research it will take 3 to 5 minutes...")
+            st.write("🚀 Starting research it will take 3 to 5 minutes....")
             with st.spinner('Working hard...'):
                 final_state = graph.invoke(state)
             if final_state.get("final_answer"):
