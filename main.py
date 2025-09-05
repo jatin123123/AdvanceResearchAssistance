@@ -197,106 +197,59 @@ graph_builder.add_edge("synthesize_analyses", END)
 graph = graph_builder.compile()
 
 # ---------------- STREAMLIT ----------------
+# --- app.py (UI section only) ---
+import streamlit as st
+
 def main():
-    # Page config
     st.set_page_config(
         page_title="Multi-Source Research Agent",
         page_icon="🔎",
         layout="wide",
-        initial_sidebar_state="expanded"
+        initial_sidebar_state="expanded",
     )
-    
-    # Custom CSS
-    st.markdown("""
-    <style>
-    .main-header {
-        font-size: 3rem;
-        color: #1f77b4;
-        text-align: center;
-        margin-bottom: 2rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-    }
-    .search-box {
-        background-color: #f0f2f6;
-        padding: 1.5rem;
-        border-radius: 10px;
-        margin-bottom: 2rem;
-    }
-    .result-container {
-        background-color: #ffffff;
-        padding: 2rem;
-        border-radius: 10px;
-        border-left: 5px solid #1f77b4;
-        margin-top: 2rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .step-indicator {
-        background-color: #e8f4fd;
-        padding: 1rem;
-        border-radius: 8px;
-        margin: 1rem 0;
-        border-left: 4px solid #1f77b4;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Header
-    st.markdown('<h1 class="main-header">🔎 Multi-Source Research Agent</h1>', unsafe_allow_html=True)
-    
+
     # Sidebar
     with st.sidebar:
-        st.header("ℹ️ About")
-        st.write("""
-        This research agent searches across multiple sources:
-        - 🌐 **Google Search**: Web results and knowledge panels
-        - 🔍 **Bing Search**: Additional web perspectives  
-        - 📱 **Reddit**: Community discussions and insights
-        
-        The AI analyzes all sources and provides a comprehensive answer.
-        """)
-        
-        st.header("⚡ Features")
-        st.write("""
-        - Parallel multi-source searching
-        - Intelligent content filtering
-        - Comprehensive analysis synthesis
-        - Real-time progress tracking
-        """)
-        
-        st.header("⏱️ Processing Time")
-        st.info("Research typically takes 3-5 minutes")
-    
-    # Main content area
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.markdown('<div class="search-box">', unsafe_allow_html=True)
-        st.subheader("🤔 What would you like to research?")
-        user_input = st.text_input(
-            "Enter your question:",
-            placeholder="e.g., What are the latest developments in AI?",
-            label_visibility="collapsed"
+        st.header("About")
+        st.write(
+            "Searches Google, Bing, and Reddit, then synthesizes a single answer."
         )
-        
-        col_a, col_b, col_c = st.columns([1, 2, 1])
-        with col_b:
-            search_button = st.button("🚀 Start Research", use_container_width=True, type="primary")
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Results area
-    if search_button:
-        if user_input:
-            # Initialize progress tracking
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            # Create containers for live updates
-            search_container = st.container()
-            analysis_container = st.container()
-            
-            state: State = {
-                "messages": [{"role": "user", "content": user_input}],
-                "user_question": user_input,
+        st.divider()
+        st.subheader("Features")
+        st.write(
+            "- Parallel multi-source search\n"
+            "- Intelligent filtering\n"
+            "- Comprehensive synthesis\n"
+            "- Real-time status"
+        )
+
+    # Header
+    st.title("🔎 Multi-Source Research Agent")
+    st.caption("Ask a question, watch the steps, and get a consolidated answer.")
+
+    # Chat history
+    if "chat" not in st.session_state:
+        st.session_state.chat = []
+
+    for msg in st.session_state.chat:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    # Input (chat style)
+    prompt = st.chat_input("What would you like to research?")
+    if prompt:
+        # Echo user message
+        st.session_state.chat.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # Run pipeline with animated status
+        with st.status("Running research…", expanded=True) as status:
+            status.update(label="Searching sources (Google, Bing, Reddit)…", state="running")
+            # Prepare initial state for the graph
+            state = {
+                "messages": [{"role": "user", "content": prompt}],
+                "user_question": prompt,
                 "google_results": None,
                 "bing_results": None,
                 "reddit_results": None,
@@ -307,83 +260,53 @@ def main():
                 "reddit_analysis": None,
                 "final_answer": None,
             }
-            
-            # Step indicators
-            with search_container:
-                st.markdown("### � Search Phase")
-                search_cols = st.columns(3)
-                
-                with search_cols[0]:
-                    google_status = st.empty()
-                with search_cols[1]:
-                    bing_status = st.empty()
-                with search_cols[2]:
-                    reddit_status = st.empty()
-            
-            with analysis_container:
-                st.markdown("### 🧠 Analysis Phase")
-                analysis_cols = st.columns(3)
-                
-                with analysis_cols[0]:
-                    google_analysis_status = st.empty()
-                with analysis_cols[1]:
-                    bing_analysis_status = st.empty()
-                with analysis_cols[2]:
-                    reddit_analysis_status = st.empty()
-            
-            # Execute research
-            status_text.text("🚀 Initializing research...")
-            progress_bar.progress(10)
-            
-            try:
-                final_state = graph.invoke(state)
-                progress_bar.progress(100)
-                status_text.text("✅ Research completed!")
-                
-                # Display results
-                if final_state.get("final_answer"):
-                    st.markdown('<div class="result-container">', unsafe_allow_html=True)
-                    st.markdown("## 🎯 Research Results")
-                    st.markdown("---")
-                    st.markdown(final_state.get('final_answer'))
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    
-                    # Additional insights in expandable sections
-                    with st.expander("📊 Detailed Analysis Breakdown"):
-                        tab1, tab2, tab3 = st.tabs(["🌐 Google Analysis", "🔍 Bing Analysis", "📱 Reddit Analysis"])
-                        
-                        with tab1:
-                            if final_state.get("google_analysis"):
-                                st.write(final_state.get("google_analysis"))
-                            else:
-                                st.write("No Google analysis available")
-                        
-                        with tab2:
-                            if final_state.get("bing_analysis"):
-                                st.write(final_state.get("bing_analysis"))
-                            else:
-                                st.write("No Bing analysis available")
-                        
-                        with tab3:
-                            if final_state.get("reddit_analysis"):
-                                st.write(final_state.get("reddit_analysis"))
-                            else:
-                                st.write("No Reddit analysis available")
-                    
-                    # Show selected Reddit URLs if available
-                    selected_urls = final_state.get("selected_reddit_urls")
-                    if selected_urls:
-                        with st.expander("🔗 Reddit Sources"):
-                            for i, url in enumerate(selected_urls, 1):
-                                st.write(f"{i}. [{url}]({url})")
-                
-            except Exception as e:
-                st.error(f"❌ An error occurred during research: {str(e)}")
-                progress_bar.progress(0)
-                status_text.text("❌ Research failed")
-                
-        else:
-            st.warning("⚠️ Please enter a question to start your research!")
+
+            # Execute the research graph
+            # (reuses your existing nodes and graph definition)
+            status.write("• Running multi-source search")
+            final_state = graph.invoke(state)
+
+            status.update(label="Analyzing retrieved content…", state="running")
+            status.write("• Parsing and ranking results")
+
+            status.update(label="Synthesizing a final answer…", state="running")
+            status.write("• Consolidating sources")
+
+            status.update(label="Done", state="complete")
+
+        # Render assistant response
+        with st.chat_message("assistant"):
+            if final_state.get("final_answer"):
+                st.markdown(final_state["final_answer"])
+            else:
+                st.info("No answer was produced. Please try again with a different question.")
+
+            # Details
+            st.divider()
+            st.subheader("Detailed Analysis")
+            tab1, tab2, tab3 = st.tabs(["🌐 Google", "🔍 Bing", "📱 Reddit"])
+            with tab1:
+                st.markdown(final_state.get("google_analysis", "_No Google analysis available._"))
+            with tab2:
+                st.markdown(final_state.get("bing_analysis", "_No Bing analysis available._"))
+            with tab3:
+                st.markdown(final_state.get("reddit_analysis", "_No Reddit analysis available._"))
+
+            # Optional: show selected Reddit sources
+            selected_urls = final_state.get("selected_reddit_urls") or []
+            if selected_urls:
+                with st.expander("Reddit Sources"):
+                    for i, url in enumerate(selected_urls, 1):
+                        st.write(f"{i}. [{url}]({url})")
+
+        # Persist assistant message in chat history
+        st.session_state.chat.append({
+            "role": "assistant",
+            "content": final_state.get("final_answer", "_No answer produced._"),
+        })
+
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,7 @@
+[theme]
+base="light"                # or "dark"
+primaryColor="#1f77b4"      # buttons, highlights
+backgroundColor="#FFFFFF"   # app background
+secondaryBackgroundColor="#F5F7FB"  # cards/containers
+textColor="#111827"         # high-contrast text
+font="sans serif"           # app-wide font
